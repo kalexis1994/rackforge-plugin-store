@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "org.rackforge.example",
+  "name": "RF-Example",
+  "summary": "Example RackForge instrument",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/example/rf-example",
+  "releases": [
+    {
+      "version": "0.1.0",
+      "published_at": "2026-08-20T00:00:00Z",
+      "artifacts": [
+        {
+          "platform": "wasm-v1",
+          "source_url": "https://github.com/example/rf-example/releases/download/v0.1.0/rf-example-0.1.0.rfplugin",
+          "expected_size": 123456,
+          "expected_sha256": "replace-with-the-reviewed-64-character-lowercase-sha256"
+        }
+      ]
+    }
+  ]
+}

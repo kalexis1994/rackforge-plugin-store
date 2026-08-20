@@ -1,0 +1,68 @@
+name: Validate official store
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout store
+        uses: actions/checkout@v6
+
+      - name: Test deterministic publisher
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Checkout pinned RackForge validator
+        shell: bash
+        run: |
+          rackforge_ref="$(tr -d '\r\n' < RACKFORGE_REF)"
+          git clone --filter=blob:none https://github.com/kalexis1994/rackforge.git .cache/rackforge
+          git -C .cache/rackforge checkout --detach "$rackforge_ref"
+
+      - name: Build RackForge store validator
+        working-directory: .cache/rackforge
+        run: cargo build --locked --release -p rackforge-store
+
+      - name: Build and validate catalog artifacts
+        run: |
+          python3 tools/build_store.py \
+            --validator .cache/rackforge/target/release/rackforge-store
+
+      - name: Exercise catalog signing and verification
+        shell: bash
+        run: |
+          validator=.cache/rackforge/target/release/rackforge-store
+          mkdir -p .keys
+          "$validator" keygen .keys/ephemeral.secret .keys/ephemeral.public
+          "$validator" sign dist/v1/index.json .keys/ephemeral.secret dist/v1/index.json.sig
+          public_key="$(tr -d '\r\n' < .keys/ephemeral.public)"
+          printf '%s\n' \
+            'schema_version = 1' \
+            '' \
+            '[[repositories]]' \
+            'id = "org.rackforge.official"' \
+            'name = "RackForge Official"' \
+            'base_url = "https://plugins.rackforge.org/"' \
+            "public_key = \"$public_key\"" \
+            'enabled = true' \
+            'allow_insecure_http = false' \
+            > .keys/repositories.toml
+          "$validator" verify \
+            dist/v1/index.json \
+            dist/v1/index.json.sig \
+            .keys/repositories.toml \
+            org.rackforge.official
+
+      - name: Upload unsigned validation payload
+        uses: actions/upload-artifact@v6
+        with:
+          name: rackforge-official-store-validation
+          path: dist/
+          if-no-files-found: error
