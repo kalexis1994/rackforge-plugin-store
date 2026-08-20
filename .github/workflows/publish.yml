@@ -1,0 +1,98 @@
+name: Publish official store
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rackforge-official-store-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production-store
+    steps:
+      - name: Checkout store
+        uses: actions/checkout@v6
+
+      - name: Test deterministic publisher
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Checkout pinned RackForge validator
+        shell: bash
+        run: |
+          rackforge_ref="$(tr -d '\r\n' < RACKFORGE_REF)"
+          git clone --filter=blob:none https://github.com/kalexis1994/rackforge.git .cache/rackforge
+          git -C .cache/rackforge checkout --detach "$rackforge_ref"
+
+      - name: Build RackForge store validator
+        working-directory: .cache/rackforge
+        run: cargo build --locked --release -p rackforge-store
+
+      - name: Build and validate catalog
+        run: |
+          python3 tools/build_store.py \
+            --validator .cache/rackforge/target/release/rackforge-store
+
+      - name: Sign and verify catalog
+        shell: bash
+        env:
+          RACKFORGE_STORE_SIGNING_KEY: ${{ secrets.RACKFORGE_STORE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$RACKFORGE_STORE_SIGNING_KEY"
+          umask 077
+          mkdir -p .keys
+          printf '%s' "$RACKFORGE_STORE_SIGNING_KEY" > .keys/official.secret
+
+          validator=.cache/rackforge/target/release/rackforge-store
+          "$validator" sign \
+            dist/v1/index.json \
+            .keys/official.secret \
+            dist/v1/index.json.sig
+
+          public_key="$(tr -d '\r\n' < keys/official.public)"
+          printf '%s\n' \
+            'schema_version = 1' \
+            '' \
+            '[[repositories]]' \
+            'id = "org.rackforge.official"' \
+            'name = "RackForge Official"' \
+            'base_url = "https://kalexis1994.github.io/rackforge-plugin-store/"' \
+            "public_key = \"$public_key\"" \
+            'enabled = true' \
+            'allow_insecure_http = false' \
+            > .keys/repositories.toml
+
+          "$validator" verify \
+            dist/v1/index.json \
+            dist/v1/index.json.sig \
+            .keys/repositories.toml \
+            org.rackforge.official
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

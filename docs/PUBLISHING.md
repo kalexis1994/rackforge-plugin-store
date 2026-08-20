@@ -21,14 +21,33 @@ controlled machine with:
 rackforge-store keygen official.secret official.public
 ```
 
-Keep `official.secret` offline and backed up. If online signing is enabled,
-store it only in a protected GitHub Environment requiring approval. Commit
-only the public key after it has also been embedded in RackForge.
+Keep `official.secret` offline and backed up. The CI copy is stored only as the
+`RACKFORGE_STORE_SIGNING_KEY` secret in the `production-store` GitHub
+Environment. `keys/official.public` is intentionally committed and must be
+embedded in RackForge before the store is enabled in a product release.
 
-The current workflow intentionally uses an ephemeral key only to prove that
-the generated catalog conforms to RackForge's signing and verification
-contract. A production deployment workflow should be added after the remote
-repository, protected environment, public URL, and recovery procedure exist.
+The validation workflow uses an ephemeral key and never receives the
+production secret. The production workflow can only be dispatched explicitly
+from `main`, signs the generated catalog, verifies the signature with the
+committed public key, and then uploads the exact verified directory to GitHub
+Pages.
+
+## Production publication
+
+1. Merge a reviewed catalog change into `main` and wait for `Validate official
+   store` to pass.
+2. Open **Actions -> Publish official store -> Run workflow** and select
+   `main`.
+3. Approve the `production-store` deployment if environment approval is
+   enabled.
+4. Confirm that both build and `github-pages` deployment jobs succeed.
+5. Verify `v1/index.json` and `v1/index.json.sig` from
+   `https://kalexis1994.github.io/rackforge-plugin-store/` with the released
+   RackForge public key.
+
+Publishing is write-once per workflow run: packages are rebuilt from reviewed
+immutable GitHub Release URLs. The generated `dist` directory is never reused
+between runs.
 
 ## Adding a plugin
 

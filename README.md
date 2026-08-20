@@ -12,7 +12,8 @@ The store pipeline:
 3. validates every package with a pinned RackForge `rackforge-store` build;
 4. recomputes package size and SHA-256;
 5. mirrors packages below `v1/packages` for Catalog v1 same-origin delivery;
-6. emits `v1/index.json`, ready for protected Ed25519 signing.
+6. emits and signs `v1/index.json` with the protected official Ed25519 key;
+7. publishes the signed catalog and mirrored packages through GitHub Pages.
 
 ## Repository layout
 
@@ -22,6 +23,7 @@ catalog/examples/      Declaration templates, never published
 tools/build_store.py   Deterministic downloader and catalog builder
 tests/                 Publisher safety and ordering tests
 docs/PUBLISHING.md     Signing, review, and release procedure
+keys/official.public   Public key embedded by RackForge for catalog verification
 RACKFORGE_REF          Exact RackForge validator commit used by CI
 dist/                  Generated repository payload (ignored)
 ```
@@ -50,12 +52,22 @@ For isolated tests only, declarations may use `source_path` together with
 `--allow-local-sources`. Official catalog declarations must use reviewed HTTPS
 `source_url` values.
 
-## Signing
+## Publication
 
-The private Ed25519 key is not part of this repository. CI currently generates
-an ephemeral key to exercise the complete sign/verify contract without
-creating production trust material. See [Publishing](docs/PUBLISHING.md) before
-creating the official key or deployment workflow.
+The private Ed25519 key is stored only as the
+`production-store/RACKFORGE_STORE_SIGNING_KEY` GitHub Environment secret. The
+committed public key lets RackForge verify the resulting catalog. Validation
+runs on every pull request and push; production publication is an explicit
+`Publish official store` workflow dispatch from `main`.
+
+The initial public base URL is:
+
+```text
+https://kalexis1994.github.io/rackforge-plugin-store/
+```
+
+See [Publishing](docs/PUBLISHING.md) for the review, signing, recovery, and
+release procedure.
 
 ## Current scope
 
