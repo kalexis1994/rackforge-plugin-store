@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "org.rackforge.rf-soundfonts",
+  "name": "RF-Soundfonts",
+  "summary": "Cross-platform SoundFont instrument with a bundled YDP Grand Piano and support for user SoundFont libraries.",
+  "license": "GPL-3.0-only AND CC-BY-3.0",
+  "homepage": "https://github.com/kalexis1994/rackforge-plugin-rf-soundfonts",
+  "releases": [
+    {
+      "version": "0.2.1",
+      "published_at": "2026-08-12T13:20:09Z",
+      "artifacts": [
+        {
+          "platform": "wasm-v1",
+          "source_url": "https://github.com/kalexis1994/rackforge-plugin-rf-soundfonts/releases/download/v0.2.1/RF-Soundfonts.rfplugin",
+          "expected_size": 56505988,
+          "expected_sha256": "a281a852370eb1a570512af82bc9e72c16e165628066b42e1d51855453406673"
+        }
+      ]
+    }
+  ]
+}
